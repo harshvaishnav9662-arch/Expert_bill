@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EXPERT LIGHT - Billing App</title>
+
+  <!-- PWA & Mobile App Icon Configuration -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icon.png" />
+  <link rel="apple-touch-icon" href="icon.png" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- html2pdf.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    @media print {
+      body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      #printArea {
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        width: 100% !important;
+        padding: 0 !important;
+      }
+    }
+    .bill-font {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-gray-900 font-sans min-h-screen">
+
+  <!-- Shared Catalog Datalist for Fast Autofill -->
+  <datalist id="catalogList"></datalist>
+
+  <!-- Header with New Bill & Download PDF -->
+  <header class="bg-black text-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-50 no-print shadow">
+    <div class="flex items-center space-x-2.5">
+      <img src="icon.png" alt="App Icon" class="w-7 h-7 rounded object-contain bg-white p-0.5" onerror="this.style.display='none'" />
+      <span class="font-bold text-sm tracking-wider uppercase">EXPERT LIGHT Daily Memo</span>
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      <button onclick="newBill()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white rounded text-xs font-semibold flex items-center border border-gray-600 transition">
+        <i data-lucide="file-plus" class="w-3.5 h-3.5 mr-1"></i> New Bill
+      </button>
+
+      <button onclick="downloadPDF()" class="px-3.5 py-1.5 bg-white hover:bg-gray-200 text-black rounded text-xs font-bold flex items-center shadow transition">
+        <i data-lucide="download" class="w-3.5 h-3.5 mr-1"></i> Download PDF
+      </button>
+    </div>
+  </header>
+
+  <div class="max-w-[1500px] mx-auto p-3 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT FORM EDITOR -->
+    <div class="lg:col-span-4 space-y-4 no-print">
+      
+      <!-- Customer Card -->
+      <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-gray-700 border-b pb-2 flex items-center">
+          <i data-lucide="user" class="w-4 h-4 mr-1.5 text-gray-500"></i> Customer & Invoice Info
+        </h2>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Customer Name & Phone (M/s.)</label>
+          <input type="text" id="custNamePhone" value="" placeholder="e.g. HARSHBHAI VAISHNAV - 9662009413" class="w-full text-xs p-2 border border-gray-300 rounded font-bold uppercase focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Location / City</label>
+          <input type="text" id="custCity" value="RAJKOT" class="w-full text-xs p-2 border border-gray-300 rounded font-bold uppercase focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">No. (Unlimited Sequence)</label>
+            <input type="text" id="billNo" value="EEL-0001" class="w-full text-xs p-2 border border-gray-300 rounded font-semibold focus:ring-1 focus:ring-black outline-none" oninput="onBillNoManualChange(this.value)" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">Date (Auto Live)</label>
+            <input type="text" id="billDate" class="w-full text-xs p-2 border border-gray-300 rounded font-semibold focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 pt-2 border-t">
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Old Balance (DB)</label>
+            <input type="number" step="any" id="oldBalance" value="0.00" class="w-full text-xs p-2 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Note Remark</label>
+            <input type="text" id="memoNote" value="" placeholder="Optional note" class="w-full text-xs p-2 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Items Card with Catalog Autofill -->
+      <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between border-b pb-2">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center">
+              <i data-lucide="package" class="w-4 h-4 mr-1.5 text-gray-500"></i> Product Items
+            </h2>
+            <span class="text-[10px] text-gray-400">Type 2 letters to auto-fill description & rate</span>
+          </div>
+          <button onclick="addItem()" class="bg-black hover:bg-gray-800 text-white text-xs font-semibold px-2.5 py-1 rounded flex items-center">
+            <i data-lucide="plus" class="w-3 h-3 mr-1"></i> Add Product
+          </button>
+        </div>
+        <div id="itemsContainer" class="space-y-3">
+          <!-- Dynamic Items Injected Here -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PDF PREVIEW -->
+    <div class="lg:col-span-8 flex justify-center">
+      <div id="printArea" class="bg-white w-full max-w-[880px] p-6 shadow-md border border-gray-300 text-black bill-font">
+        
+        <div class="border border-black p-3 min-h-[920px] flex flex-col justify-between">
+          <div>
+            <!-- Top Header -->
+            <div class="relative flex items-center justify-center border-b border-black pb-2 mb-2">
+              <span class="absolute left-1 text-[11px] font-bold">Debit Memo</span>
+              <span class="text-xl font-bold tracking-wider">EXPERT LIGHT</span>
+            </div>
+
+            <!-- Customer & Memo Info Box -->
+            <div class="border border-black flex mb-[-1px] text-[10.5px]">
+              <div class="w-8/12 p-2 border-r border-black flex flex-col justify-between min-h-[58px]">
+                <div class="flex items-start">
+                  <span class="font-bold mr-2 whitespace-nowrap">M/s. :</span>
+                  <span id="pvCustNamePhone" class="font-bold uppercase leading-tight"></span>
+                </div>
+                <div id="pvCustCity" class="font-bold uppercase mt-2">RAJKOT</div>
+              </div>
+
+              <div class="w-4/12 flex flex-col justify-center px-3 py-1.5 space-y-1">
+                <div class="flex">
+                  <span class="font-bold w-12">No.</span>
+                  <span class="font-medium">: <span id="pvBillNo">EEL-0001</span></span>
+                </div>
+                <div class="flex">
+                  <span class="font-bold w-12">Date</span>
+                  <span class="font-medium">: <span id="pvBillDate"></span></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="border border-black">
+              <table class="w-full border-collapse text-[10.5px]">
+                <thead>
+                  <tr class="border-b border-black text-center font-bold">
+                    <th class="border-r border-black py-1 w-[6%]">SrNo</th>
+                    <th class="border-r border-black py-1 px-2 text-left w-[46%]">Product Name</th>
+                    <th class="border-r border-black py-1 w-[10%]">Qty</th>
+                    <th class="border-r border-black py-1 w-[10%]">Rate</th>
+                    <th class="border-r border-black py-1 w-[8%]">Disc.</th>
+                    <th class="border-r border-black py-1 w-[10%]">Disc.Amt.</th>
+                    <th class="py-1 px-2 text-right w-[10%]">Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="pvItemsBody"></tbody>
+                <tr style="height: 380px;">
+                  <td class="border-r border-black"></td>
+                  <td class="border-r border-black"></td>
+                  <td class="border-r border-black"></td>
+                  <td class="border-r border-black"></td>
+                  <td class="border-r border-black"></td>
+                  <td class="border-r border-black"></td>
+                  <td></td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Amount in words & Sub Total -->
+            <div class="border-x border-b border-black flex text-[10.5px]">
+              <div class="w-8/12 px-2 py-1 flex items-center border-r border-black">
+                <span class="font-bold mr-1">Rs. (in words) :</span>
+                <span id="pvAmountInWords" class="italic font-normal"></span>
+              </div>
+              <div class="w-4/12 flex justify-between px-3 py-1 font-bold">
+                <span>Sub Total</span>
+                <span id="pvSubTotal">0.00</span>
+              </div>
+            </div>
+
+            <!-- Ledger & Totals -->
+            <div class="border-x border-b border-black flex text-[10.5px]">
+              <div class="w-8/12 border-r border-black p-2 flex flex-col justify-between">
+                <div class="space-y-0.5">
+                  <div class="flex">
+                    <span class="font-bold w-24">Old Balance :</span>
+                    <span class="font-bold ml-12"><span id="pvOldBalance">0.00</span> DB</span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-bold w-24">+ This Bill :</span>
+                    <span class="font-bold ml-12"><span id="pvThisBill">0.00</span> DB</span>
+                  </div>
+                  <div class="flex">
+                    <span class="font-bold w-24">Net Balance :</span>
+                    <span class="font-bold ml-12"><span id="pvNetBalance">0.00</span> DB</span>
+                  </div>
+                </div>
+                <div class="mt-4 font-bold">
+                  Note : <span id="pvNote" class="font-normal"></span>
+                </div>
+              </div>
+
+              <div class="w-4/12 flex flex-col justify-between">
+                <div class="flex justify-between px-3 py-1 font-normal">
+                  <span class="text-gray-700">Round Off</span>
+                  <span id="pvRoundOff">0.00</span>
+                </div>
+                <div class="border-t border-black flex justify-between px-3 py-1 font-bold">
+                  <span>Grand Total</span>
+                  <span id="pvGrandTotal">0.00</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const PRODUCT_CATALOG = [
+      { name: "RGB ROPE LIGHT COMPLETE SET (STRIP, SENSOR)", rate: 350.00 },
+      { name: "RGB ROPE LED LIGHT", rate: 260.00 },
+      { name: "FABELLE BLANK PLATE BLACK (POLYCAB)", rate: 13.86 },
+      { name: "1.5 SQ MM COPPER WIRE (90M)", rate: 1450.00 },
+      { name: "2.5 SQ MM COPPER WIRE (90M)", rate: 2350.00 },
+      { name: "1.0 SQ MM COPPER WIRE (90M)", rate: 980.00 },
+      { name: "10A 1-WAY MODULAR SWITCH", rate: 24.00 },
+      { name: "20A 1-WAY MODULAR SWITCH", rate: 45.00 },
+      { name: "6A MODULAR 3-PIN SOCKET", rate: 38.00 },
+      { name: "16A MODULAR POWER SOCKET", rate: 68.00 },
+      { name: "12V 5A LED SLIM DRIVER/POWER SUPPLY", rate: 320.00 },
+      { name: "12V 10A LED SLIM DRIVER/POWER SUPPLY", rate: 540.00 },
+      { name: "LED COB PROFILE LIGHT 5M ROLL (WARM WHITE)", rate: 420.00 },
+      { name: "LED COB PROFILE LIGHT 5M ROLL (NATURAL WHITE)", rate: 420.00 },
+      { name: "ALUMINUM PROFILE CHANNEL WITH DIFFUSER (2 MTR)", rate: 160.00 },
+      { name: "CONCEALED BOX 6-MODULE METAL", rate: 65.00 },
+      { name: "CONCEALED BOX 8-MODULE METAL", rate: 85.00 },
+      { name: "CONCEALED BOX 12-MODULE METAL", rate: 120.00 }
+    ];
+
+    let items = [
+      { name: "RGB ROPE LIGHT COMPLETE SET (STRIP, SENSOR)", qty: 2.000, rate: 350.00 },
+      { name: "RGB ROPE LED LIGHT", qty: 1.000, rate: 260.00 }
+    ];
+
+    // ==========================================
+    // UNLIMITED BILL SEQUENCE ENGINE (STARTS AT EEL-0001)
+    // Supports 0001 -> 9999 -> 10000 -> 999999+ without limits
+    // ==========================================
+    const BILL_PREFIX = "EEL-";
+
+    function getFormattedBillNo(num) {
+      const validNum = Math.max(1, parseInt(num, 10) || 1);
+      // Keeps 4 digits (e.g. 0001, 0045, 0999) and smoothly grows to 10000, 10001+ infinitely
+      const numStr = validNum < 10000 ? String(validNum).padStart(4, '0') : String(validNum);
+      return BILL_PREFIX + numStr;
+    }
+
+    function getCurrentSequenceNumber() {
+      const stored = localStorage.getItem('expert_light_seq_num');
+      if (!stored) {
+        localStorage.setItem('expert_light_seq_num', '1');
+        return 1;
+      }
+      return parseInt(stored, 10) || 1;
+    }
+
+    function incrementSequenceNumber() {
+      const current = getCurrentSequenceNumber();
+      const next = current + 1;
+      localStorage.setItem('expert_light_seq_num', next.toString());
+      return next;
+    }
+
+    function onBillNoManualChange(val) {
+      // Allows typing any bill number manually and tracks sequence from that number forward
+      const match = val.match(/\d+$/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        localStorage.setItem('expert_light_seq_num', num.toString());
+      }
+      saveAndRender();
+    }
+
+    function setupCatalogList() {
+      const datalist = document.getElementById('catalogList');
+      datalist.innerHTML = '';
+      PRODUCT_CATALOG.forEach(prod => {
+        const option = document.createElement('option');
+        option.value = prod.name;
+        option.textContent = `₹${prod.rate.toFixed(2)}`;
+        datalist.appendChild(option);
+      });
+    }
+
+    // Auto Live Date (DD/MM/YYYY)
+    function getTodayFormatted() {
+      const now = new Date();
+      const d = String(now.getDate()).padStart(2, '0');
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const y = now.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+
+    function numberToWords(num) {
+      const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+      const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+      function inWords(n) {
+        if ((n = n.toString()).length > 9) return 'overflow';
+        let nArr = ('000000000' + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+        if (!nArr) return '';
+        let str = '';
+        str += (nArr[1] != 0) ? (a[Number(nArr[1])] || b[nArr[1][0]] + ' ' + a[nArr[1][1]]) + 'Crore ' : '';
+        str += (nArr[2] != 0) ? (a[Number(nArr[2])] || b[nArr[2][0]] + ' ' + a[nArr[2][1]]) + 'Lakh ' : '';
+        str += (nArr[3] != 0) ? (a[Number(nArr[3])] || b[nArr[3][0]] + ' ' + a[nArr[3][1]]) + 'Thousand ' : '';
+        str += (nArr[4] != 0) ? (a[Number(nArr[4])] || b[nArr[4][0]] + ' ' + a[nArr[4][1]]) + 'Hundred ' : '';
+        str += (nArr[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(nArr[5])] || b[nArr[5][0]] + ' ' + a[nArr[5][1]]) : '';
+        return str.trim();
+      }
+      const intVal = Math.round(num);
+      return intVal === 0 ? 'Zero Only' : inWords(intVal) + ' Only';
+    }
+
+    function handleProductNameInput(index, val) {
+      items[index].name = val;
+      const matched = PRODUCT_CATALOG.find(p => p.name.toLowerCase() === val.trim().toLowerCase());
+      if (matched) {
+        items[index].rate = matched.rate;
+        const rateInput = document.getElementById(`item-rate-${index}`);
+        if (rateInput) rateInput.value = matched.rate;
+      }
+      saveAndRender();
+    }
+
+    function renderEditor() {
+      const c = document.getElementById('itemsContainer');
+      c.innerHTML = '';
+      items.forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = 'p-3 bg-gray-50 border border-gray-300 rounded space-y-2';
+        div.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-gray-700">Item #${i+1}</span>
+            ${items.length > 1 ? `<button onclick="removeItem(${i})" class="text-red-600 hover:text-red-800 text-xs font-bold flex items-center"><i data-lucide="trash-2" class="w-3.5 h-3.5 mr-0.5"></i> Delete</button>` : ''}
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-gray-600">Product Name (Autofill)</label>
+            <input 
+              type="text" 
+              list="catalogList" 
+              placeholder="Search or type product..." 
+              value="${item.name}" 
+              oninput="handleProductNameInput(${i}, this.value)" 
+              class="w-full text-xs p-1.5 border border-gray-300 rounded uppercase font-semibold focus:ring-1 focus:ring-black outline-none bg-white" 
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-600">Qty</label>
+              <input type="number" step="any" value="${item.qty}" oninput="updateItem(${i}, 'qty', this.value)" class="w-full text-xs p-1.5 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-black outline-none bg-white" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-gray-600">Rate (₹)</label>
+              <input type="number" id="item-rate-${i}" step="any" value="${item.rate}" oninput="updateItem(${i}, 'rate', this.value)" class="w-full text-xs p-1.5 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-black outline-none bg-white" />
+            </div>
+          </div>
+        `;
+        c.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
+    function addItem() {
+      items.push({ name: "", qty: 1, rate: 0 });
+      renderEditor();
+      saveAndRender();
+    }
+
+    function removeItem(i) {
+      if (items.length > 1) {
+        items.splice(i, 1);
+        renderEditor();
+        saveAndRender();
+      }
+    }
+
+    function updateItem(i, k, v) {
+      items[i][k] = (k === 'qty' || k === 'rate') ? (parseFloat(v) || 0) : v;
+      saveAndRender();
+    }
+
+    function saveAndRender() {
+      const data = {
+        name: document.getElementById('custNamePhone').value,
+        city: document.getElementById('custCity').value,
+        billNo: document.getElementById('billNo').value,
+        date: document.getElementById('billDate').value,
+        oldBal: document.getElementById('oldBalance').value,
+        note: document.getElementById('memoNote').value,
+        items: items
+      };
+      localStorage.setItem('expert_light_last_bill', JSON.stringify(data));
+
+      document.getElementById('pvCustNamePhone').textContent = data.name || '-';
+      document.getElementById('pvCustCity').textContent = data.city || '-';
+      document.getElementById('pvBillNo').textContent = data.billNo || getFormattedBillNo(1);
+      document.getElementById('pvBillDate').textContent = data.date || '-';
+      document.getElementById('pvNote').textContent = data.note || '';
+
+      const tbody = document.getElementById('pvItemsBody');
+      tbody.innerHTML = '';
+      let subtotal = 0;
+
+      items.forEach((item, i) => {
+        const rowTotal = (item.qty || 0) * (item.rate || 0);
+        subtotal += rowTotal;
+        const tr = document.createElement('tr');
+        tr.className = 'text-center';
+        tr.innerHTML = `
+          <td class="border-r border-black py-1">${i + 1}</td>
+          <td class="border-r border-black py-1 px-2 text-left uppercase font-normal">${item.name}</td>
+          <td class="border-r border-black py-1">${Number(item.qty).toFixed(3)}</td>
+          <td class="border-r border-black py-1">${Number(item.rate).toFixed(2)}</td>
+          <td class="border-r border-black py-1"></td>
+          <td class="border-r border-black py-1"></td>
+          <td class="py-1 px-2 text-right">${rowTotal.toFixed(2)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const grandTotal = Math.round(subtotal);
+      const roundOff = grandTotal - subtotal;
+      const oldBal = parseFloat(data.oldBal) || 0;
+      const netBal = oldBal + grandTotal;
+
+      document.getElementById('pvSubTotal').textContent = subtotal.toFixed(2);
+      document.getElementById('pvRoundOff').textContent = (roundOff >= 0 ? '+' : '') + roundOff.toFixed(2);
+      document.getElementById('pvGrandTotal').textContent = grandTotal.toFixed(2);
+      document.getElementById('pvAmountInWords').textContent = numberToWords(grandTotal);
+
+      document.getElementById('pvOldBalance').textContent = oldBal.toFixed(2);
+      document.getElementById('pvThisBill').textContent = grandTotal.toFixed(2);
+      document.getElementById('pvNetBalance').textContent = netBal.toFixed(2);
+    }
+
+    // Increments to the next sequential bill number without any upper limit
+    function newBill() {
+      const nextSeq = incrementSequenceNumber();
+      document.getElementById('billNo').value = getFormattedBillNo(nextSeq);
+      document.getElementById('billDate').value = getTodayFormatted();
+      document.getElementById('custNamePhone').value = "";
+      document.getElementById('oldBalance').value = "0.00";
+      document.getElementById('memoNote').value = "";
+      items = [{ name: "", qty: 1, rate: 0 }];
+      renderEditor();
+      saveAndRender();
+    }
+
+    function downloadPDF() {
+      const element = document.getElementById('printArea');
+      const billNo = document.getElementById('billNo').value || 'EEL-0001';
+      const opt = {
+        margin: [4, 6, 4, 6],
+        filename: `SalesBill_${billNo}.pdf`,
+        image: { type: 'jpeg', quality: 0.99 },
+        html2canvas: { scale: 3, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+
+    window.onload = () => {
+      setupCatalogList();
+      const today = getTodayFormatted();
+      document.getElementById('billDate').value = today;
+
+      // Start sequence at EEL-0001 or load existing progress
+      const seq = getCurrentSequenceNumber();
+      document.getElementById('billNo').value = getFormattedBillNo(seq);
+
+      const saved = localStorage.getItem('expert_light_last_bill');
+      if (saved) {
+        try {
+          const d = JSON.parse(saved);
+          document.getElementById('custNamePhone').value = d.name || '';
+          document.getElementById('custCity').value = d.city || 'RAJKOT';
+          if (d.billNo) {
+            document.getElementById('billNo').value = d.billNo;
+          }
+          document.getElementById('oldBalance').value = d.oldBal || '0.00';
+          document.getElementById('memoNote').value = d.note || '';
+          document.getElementById('billDate').value = today;
+          if (d.items && d.items.length) items = d.items;
+        } catch (e) {}
+      }
+
+      renderEditor();
+      saveAndRender();
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>

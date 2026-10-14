@@ -6,10 +6,11 @@
   <title>EXPERT LIGHT - Billing App</title>
 
   <!-- PWA & Mobile App Icon Configuration -->
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icon.png" />
-  <link rel="apple-touch-icon" href="icon.png" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./icon.png" />
+  <link rel="apple-touch-icon" href="./icon.png" />
   <meta name="theme-color" content="#000000" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
@@ -50,7 +51,7 @@
   <!-- Header with New Bill & Download PDF -->
   <header class="bg-black text-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-50 no-print shadow">
     <div class="flex items-center space-x-2.5">
-      <img src="icon.png" alt="App Icon" class="w-7 h-7 rounded object-contain bg-white p-0.5" onerror="this.style.display='none'" />
+      <img src="./icon.png" alt="App Icon" class="w-7 h-7 rounded object-contain bg-white p-0.5" onerror="this.style.display='none'" />
       <span class="font-bold text-sm tracking-wider uppercase">EXPERT LIGHT Daily Memo</span>
     </div>
     
@@ -85,8 +86,8 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">No. (Unlimited Sequence)</label>
-            <input type="text" id="billNo" value="EEL-0001" class="w-full text-xs p-2 border border-gray-300 rounded font-semibold focus:ring-1 focus:ring-black outline-none" oninput="onBillNoManualChange(this.value)" />
+            <label class="block text-xs font-semibold text-gray-600 mb-1">No. (Sequence from 1)</label>
+            <input type="text" id="billNo" value="EEL-0001" class="w-full text-xs p-2 border border-gray-300 rounded font-semibold focus:ring-1 focus:ring-black outline-none bg-gray-50" oninput="onBillNoManualChange(this.value)" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1">Date (Auto Live)</label>
@@ -241,6 +242,13 @@
   </div>
 
   <script>
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => console.log('SW registration error:', err));
+      });
+    }
+
     const PRODUCT_CATALOG = [
       { name: "RGB ROPE LIGHT COMPLETE SET (STRIP, SENSOR)", rate: 350.00 },
       { name: "RGB ROPE LED LIGHT", rate: 260.00 },
@@ -268,22 +276,20 @@
     ];
 
     // ==========================================
-    // UNLIMITED BILL SEQUENCE ENGINE (STARTS AT EEL-0001)
-    // Supports 0001 -> 9999 -> 10000 -> 999999+ without limits
+    // BILL SEQUENCE ENGINE (STARTS AT EEL-0001, UNLIMITED)
     // ==========================================
     const BILL_PREFIX = "EEL-";
 
-    function getFormattedBillNo(num) {
+    function formatSequenceBillNo(num) {
       const validNum = Math.max(1, parseInt(num, 10) || 1);
-      // Keeps 4 digits (e.g. 0001, 0045, 0999) and smoothly grows to 10000, 10001+ infinitely
       const numStr = validNum < 10000 ? String(validNum).padStart(4, '0') : String(validNum);
       return BILL_PREFIX + numStr;
     }
 
     function getCurrentSequenceNumber() {
-      const stored = localStorage.getItem('expert_light_seq_num');
+      const stored = localStorage.getItem('expert_light_current_seq');
       if (!stored) {
-        localStorage.setItem('expert_light_seq_num', '1');
+        localStorage.setItem('expert_light_current_seq', '1');
         return 1;
       }
       return parseInt(stored, 10) || 1;
@@ -292,16 +298,15 @@
     function incrementSequenceNumber() {
       const current = getCurrentSequenceNumber();
       const next = current + 1;
-      localStorage.setItem('expert_light_seq_num', next.toString());
+      localStorage.setItem('expert_light_current_seq', next.toString());
       return next;
     }
 
     function onBillNoManualChange(val) {
-      // Allows typing any bill number manually and tracks sequence from that number forward
-      const match = val.match(/\d+$/);
+      const match = val.match(/\d+\$/);
       if (match) {
         const num = parseInt(match[0], 10);
-        localStorage.setItem('expert_light_seq_num', num.toString());
+        localStorage.setItem('expert_light_current_seq', num.toString());
       }
       saveAndRender();
     }
@@ -331,7 +336,7 @@
       const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
       function inWords(n) {
         if ((n = n.toString()).length > 9) return 'overflow';
-        let nArr = ('000000000' + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+        let nArr = ('000000000' + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})\$/);
         if (!nArr) return '';
         let str = '';
         str += (nArr[1] != 0) ? (a[Number(nArr[1])] || b[nArr[1][0]] + ' ' + a[nArr[1][1]]) + 'Crore ' : '';
@@ -365,7 +370,7 @@
         div.innerHTML = `
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold text-gray-700">Item #${i+1}</span>
-            ${items.length > 1 ? `<button onclick="removeItem(${i})" class="text-red-600 hover:text-red-800 text-xs font-bold flex items-center"><i data-lucide="trash-2" class="w-3.5 h-3.5 mr-0.5"></i> Delete</button>` : ''}
+            ${items.length > 1 ? `<button onclick="removeItem(\${i})" class="text-red-600 hover:text-red-800 text-xs font-bold flex items-center"><i data-lucide="trash-2" class="w-3.5 h-3.5 mr-0.5"></i> Delete</button>` : ''}
           </div>
           <div>
             <label class="block text-[11px] font-semibold text-gray-600">Product Name (Autofill)</label>
@@ -427,7 +432,7 @@
 
       document.getElementById('pvCustNamePhone').textContent = data.name || '-';
       document.getElementById('pvCustCity').textContent = data.city || '-';
-      document.getElementById('pvBillNo').textContent = data.billNo || getFormattedBillNo(1);
+      document.getElementById('pvBillNo').textContent = data.billNo || formatSequenceBillNo(1);
       document.getElementById('pvBillDate').textContent = data.date || '-';
       document.getElementById('pvNote').textContent = data.note || '';
 
@@ -467,10 +472,9 @@
       document.getElementById('pvNetBalance').textContent = netBal.toFixed(2);
     }
 
-    // Increments to the next sequential bill number without any upper limit
     function newBill() {
       const nextSeq = incrementSequenceNumber();
-      document.getElementById('billNo').value = getFormattedBillNo(nextSeq);
+      document.getElementById('billNo').value = formatSequenceBillNo(nextSeq);
       document.getElementById('billDate').value = getTodayFormatted();
       document.getElementById('custNamePhone').value = "";
       document.getElementById('oldBalance').value = "0.00";
@@ -498,9 +502,10 @@
       const today = getTodayFormatted();
       document.getElementById('billDate').value = today;
 
-      // Start sequence at EEL-0001 or load existing progress
-      const seq = getCurrentSequenceNumber();
-      document.getElementById('billNo').value = getFormattedBillNo(seq);
+      // Always retrieve the latest sequence number (starts at 1 -> EEL-0001)
+      const currentSeq = getCurrentSequenceNumber();
+      const billNoVal = formatSequenceBillNo(currentSeq);
+      document.getElementById('billNo').value = billNoVal;
 
       const saved = localStorage.getItem('expert_light_last_bill');
       if (saved) {
@@ -508,15 +513,15 @@
           const d = JSON.parse(saved);
           document.getElementById('custNamePhone').value = d.name || '';
           document.getElementById('custCity').value = d.city || 'RAJKOT';
-          if (d.billNo) {
-            document.getElementById('billNo').value = d.billNo;
-          }
           document.getElementById('oldBalance').value = d.oldBal || '0.00';
           document.getElementById('memoNote').value = d.note || '';
           document.getElementById('billDate').value = today;
           if (d.items && d.items.length) items = d.items;
         } catch (e) {}
       }
+
+      // Enforce the valid sequence number to avoid caching old static numbers
+      document.getElementById('billNo').value = billNoVal;
 
       renderEditor();
       saveAndRender();

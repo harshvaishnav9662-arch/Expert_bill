@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EXPERT LIGHT - Billing App</title>
 
-  <!-- PWA & Mobile App Settings -->
+  <!-- PWA & Mobile App Icon Settings -->
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./icon.png" />
   <link rel="apple-touch-icon" href="./icon.png" />
@@ -47,7 +47,7 @@
 
   <datalist id="catalogList"></datalist>
 
-  <!-- Header -->
+  <!-- Navigation Bar -->
   <header class="bg-black text-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-50 no-print shadow">
     <div class="flex items-center space-x-2.5">
       <img src="./icon.png" alt="App Icon" class="w-7 h-7 rounded object-contain bg-white p-0.5" onerror="this.style.display='none'" />
@@ -85,7 +85,7 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">No. (Auto Sequence)</label>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">No. (Sequence from 1)</label>
             <input type="text" id="billNo" value="EEL-0001" class="w-full text-xs p-2 border border-gray-300 rounded font-semibold focus:ring-1 focus:ring-black outline-none bg-gray-50" oninput="onBillNoManualChange(this.value)" />
           </div>
           <div>
@@ -104,7 +104,7 @@
           </div>
         </div>
 
-        <!-- Payment Status Selection for this bill -->
+        <!-- Payment Status Selection -->
         <div class="pt-2 border-t">
           <label class="block text-[11px] font-semibold text-gray-600 mb-1">Payment Status</label>
           <select id="billPaymentStatus" class="w-full text-xs p-2 border border-gray-300 rounded font-bold outline-none" onchange="saveAndRender()">
@@ -247,7 +247,7 @@
 
   </div>
 
-  <!-- SAVED BILLS & PENDING PAYMENT REMINDER SECTION -->
+  <!-- SAVED BILLS & WHATSAPP PAYMENT REMINDER LEDGER -->
   <section class="max-w-[1500px] mx-auto p-3 md:p-6 no-print">
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
@@ -255,7 +255,7 @@
           <h2 class="text-sm font-bold uppercase tracking-wider text-gray-800 flex items-center">
             <i data-lucide="history" class="w-4 h-4 mr-2 text-gray-600"></i> Saved Invoices & Payment Tracking
           </h2>
-          <p class="text-xs text-gray-500">Every bill is saved here. Send payment reminders to unpaid customers directly on WhatsApp.</p>
+          <p class="text-xs text-gray-500">Every generated bill is recorded below. Click remind to message unpaid customers on WhatsApp.</p>
         </div>
         <div class="flex items-center space-x-2">
           <input type="text" id="searchBillInput" placeholder="Search customer or bill no..." oninput="renderSavedBillsTable()" class="text-xs p-2 border border-gray-300 rounded outline-none w-56" />
@@ -275,15 +275,14 @@
               <th class="p-2.5 text-center">Payment Reminder</th>
             </tr>
           </thead>
-          <tbody id="savedBillsTableBody" class="divide-y divide-gray-200">
-            <!-- Dynamically Populated -->
-          </tbody>
+          <tbody id="savedBillsTableBody" class="divide-y divide-gray-200"></tbody>
         </table>
       </div>
     </div>
   </section>
 
   <script>
+    // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch((err) => console.log('SW error:', err));
@@ -316,6 +315,9 @@
       { name: "RGB ROPE LED LIGHT", qty: 1.000, rate: 260.00 }
     ];
 
+    // ==========================================
+    // BILL SEQUENCE ENGINE (STARTS AT EEL-0001, UNLIMITED)
+    // ==========================================
     const BILL_PREFIX = "EEL-";
 
     function formatSequenceBillNo(num) {
@@ -513,7 +515,7 @@
     }
 
     // ==========================================
-    // BILL STORAGE & PAYMENT REMINDER SYSTEM
+    // BILL STORAGE & WHATSAPP PAYMENT REMINDER
     // ==========================================
     function getAllSavedBills() {
       const stored = localStorage.getItem('expert_light_saved_bills_history');
@@ -523,7 +525,7 @@
     function saveCurrentBill() {
       const billNo = document.getElementById('billNo').value;
       const custName = document.getElementById('custNamePhone').value;
-      if (!custName.trim() && items.every(i => !i.name)) return; // Don't save empty templates
+      if (!custName.trim() && items.every(i => !i.name)) return;
 
       let history = getAllSavedBills();
       const thisBill = document.getElementById('pvGrandTotal').textContent;
@@ -561,39 +563,45 @@
         target.status = target.status === 'Paid' ? 'Unpaid' : 'Paid';
         localStorage.setItem('expert_light_saved_bills_history', JSON.stringify(history));
         
-        // If current form has this bill active, sync select dropdown
         if (document.getElementById('billNo').value === billNo) {
           document.getElementById('billPaymentStatus').value = target.status;
         }
         renderSavedBillsTable();
       }
     }
-function sendWhatsAppPaymentReminder(billNo) {
-  const history = getAllSavedBills();
-  const bill = history.find(b => b.billNo === billNo);
-  if (!bill) return;
 
-  // Extract all digits from the customer text
-  const rawDigits = (bill.custNamePhone || "").replace(/\D/g, '');
-  let phone = "";
+    // Direct WhatsApp navigation engine
+    function sendWhatsAppPaymentReminder(billNo) {
+      const history = getAllSavedBills();
+      const bill = history.find(b => b.billNo === billNo);
+      if (!bill) {
+        alert("Bill details not found.");
+        return;
+      }
 
-  // Handle standard Indian mobile formats (10 digits, or 12 digits starting with 91, or 11 digits starting with 0)
-  if (rawDigits.length === 10 && /^[6789]/.test(rawDigits)) {
-    phone = "91" + rawDigits;
-  } else if (rawDigits.length === 12 && rawDigits.startsWith("91")) {
-    phone = rawDigits;
-  } else if (rawDigits.length === 11 && rawDigits.startsWith("0")) {
-    phone = "91" + rawDigits.substring(1);
-  } else {
-    // If not found automatically, prompt the user
-    const userInput = prompt("Enter customer 10-digit WhatsApp number:", "");
-    if (!userInput) return;
-    const cleanUser = userInput.replace(/\D/g, '');
-    phone = cleanUser.length === 10 ? "91" + cleanUser : cleanUser;
-  }
+      // Extract all digits from customer name/phone field
+      const rawDigits = (bill.custNamePhone || "").replace(/\D/g, '');
+      let phone = "";
 
-  // Pre-formatted payment reminder text
-  const message = 
+      if (rawDigits.length === 10) {
+        phone = "91" + rawDigits;
+      } else if (rawDigits.length === 12 && rawDigits.startsWith("91")) {
+        phone = rawDigits;
+      } else if (rawDigits.length === 11 && rawDigits.startsWith("0")) {
+        phone = "91" + rawDigits.substring(1);
+      } else {
+        const manual = window.prompt("Customer 10-digit mobile number not found in name. Enter number to send WhatsApp reminder:", "");
+        if (!manual) return;
+        const cleanManual = manual.replace(/\D/g, '');
+        phone = cleanManual.length === 10 ? "91" + cleanManual : cleanManual;
+      }
+
+      if (!phone || phone.length < 10) {
+        alert("Please enter a valid mobile number.");
+        return;
+      }
+
+      const message = 
 `*Payment Reminder - EXPERT LIGHT*
 ----------------------------------------
 Dear Customer,
@@ -609,18 +617,9 @@ Kindly settle the pending payment at your earliest convenience via Cash or UPI.
 Thank you!
 *EXPERT LIGHT, RAJKOT*`;
 
-  // Standard WhatsApp Universal API URL
-  const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-
-  // Use a simulated anchor click to prevent browser popup blockers
-  const link = document.createElement('a');
-  link.href = waUrl;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
+      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      window.location.href = waUrl;
+    }
 
     function renderSavedBillsTable() {
       const tbody = document.getElementById('savedBillsTableBody');

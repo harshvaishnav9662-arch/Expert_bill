@@ -369,7 +369,7 @@ function renderSavedBillsTable() {
   );
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400 font-semibold">કોઈ રેકોર્ડ મળ્યો નથી.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-400 font-semibold">કોઈ રેકોર્ડ મળ્યો નથી.</td></tr>`;
     return;
   }
 
@@ -391,6 +391,11 @@ function renderSavedBillsTable() {
       <td class="p-2.5 text-center">
         <button onclick="toggleBillPaymentStatus('${b.billNo}')" class="px-2 py-1 rounded text-[10.5px] font-bold ${isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'}">
           ${isPaid ? '✓ Paid' : 'Pending'}
+        </button>
+      </td>
+      <td class="p-2.5 text-center">
+        <button onclick="deleteSavedBill('${b.billNo}')" title="Delete Bill" class="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs font-bold inline-flex items-center border border-red-200 transition">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5 mr-1"></i> Delete
         </button>
       </td>
     `;

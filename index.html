@@ -568,21 +568,32 @@
         renderSavedBillsTable();
       }
     }
+function sendWhatsAppPaymentReminder(billNo) {
+  const history = getAllSavedBills();
+  const bill = history.find(b => b.billNo === billNo);
+  if (!bill) return;
 
-    function sendWhatsAppPaymentReminder(billNo) {
-      const history = getAllSavedBills();
-      const bill = history.find(b => b.billNo === billNo);
-      if (!bill) return;
+  // Extract all digits from the customer text
+  const rawDigits = (bill.custNamePhone || "").replace(/\D/g, '');
+  let phone = "";
 
-      const phoneMatch = bill.custNamePhone.match(/\b[6789]\d{9}\b/);
-      let phone = phoneMatch ? phoneMatch[0] : "";
+  // Handle standard Indian mobile formats (10 digits, or 12 digits starting with 91, or 11 digits starting with 0)
+  if (rawDigits.length === 10 && /^[6789]/.test(rawDigits)) {
+    phone = "91" + rawDigits;
+  } else if (rawDigits.length === 12 && rawDigits.startsWith("91")) {
+    phone = rawDigits;
+  } else if (rawDigits.length === 11 && rawDigits.startsWith("0")) {
+    phone = "91" + rawDigits.substring(1);
+  } else {
+    // If not found automatically, prompt the user
+    const userInput = prompt("Enter customer 10-digit WhatsApp number:", "");
+    if (!userInput) return;
+    const cleanUser = userInput.replace(/\D/g, '');
+    phone = cleanUser.length === 10 ? "91" + cleanUser : cleanUser;
+  }
 
-      if (!phone) {
-        phone = prompt("Enter customer's 10-digit mobile number for WhatsApp reminder:", "");
-        if (!phone) return;
-      }
-
-      const message = 
+  // Pre-formatted payment reminder text
+  const message = 
 `*Payment Reminder - EXPERT LIGHT*
 ----------------------------------------
 Dear Customer,
@@ -598,9 +609,18 @@ Kindly settle the pending payment at your earliest convenience via Cash or UPI.
 Thank you!
 *EXPERT LIGHT, RAJKOT*`;
 
-      const waUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
-      window.open(waUrl, '_blank');
-    }
+  // Standard WhatsApp Universal API URL
+  const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+
+  // Use a simulated anchor click to prevent browser popup blockers
+  const link = document.createElement('a');
+  link.href = waUrl;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 
     function renderSavedBillsTable() {
       const tbody = document.getElementById('savedBillsTableBody');

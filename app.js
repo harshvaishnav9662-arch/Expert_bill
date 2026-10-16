@@ -502,7 +502,27 @@ function downloadPDF() {
     saveAndRender();
   });
 }
+// Delete a specific bill from history
+function deleteSavedBill(billNo) {
+  const confirmDelete = window.confirm(`શું તમે ખરેખર બિલ ${billNo} ડિલીટ કરવા માંગો છો? (Are you sure you want to delete bill ${billNo}?)`);
+  if (!confirmDelete) return;
 
+  let history = getAllSavedBills();
+  // Filter out the selected bill
+  history = history.filter(b => b.billNo !== billNo);
+
+  // Remove from selected set if it was checked
+  if (selectedBillNumbers.has(billNo)) {
+    selectedBillNumbers.delete(billNo);
+  }
+
+  // Save updated array to localStorage
+  localStorage.setItem('expert_light_saved_bills_history', JSON.stringify(history));
+
+  // Re-render table and update total
+  renderSavedBillsTable();
+  calculateSelectedTotal();
+}
 // App Initialization
 window.onload = () => {
   setupCatalogList();

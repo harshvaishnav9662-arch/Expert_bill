@@ -570,38 +570,52 @@
       }
     }
 
-    // Direct WhatsApp navigation engine
-    function sendWhatsAppPaymentReminder(billNo) {
-      const history = getAllSavedBills();
-      const bill = history.find(b => b.billNo === billNo);
-      if (!bill) {
-        alert("Bill details not found.");
-        return;
-      }
+    // Direct WhatsApp reminder with bulletproof lookup & fallback
+function sendWhatsAppPaymentReminder(billNo) {
+  const history = getAllSavedBills();
+  // Match trimmed bill number or fallback to current screen details if it matches
+  let bill = history.find(b => String(b.billNo).trim().toLowerCase() === String(billNo).trim().toLowerCase());
 
-      // Extract all digits from customer name/phone field
-      const rawDigits = (bill.custNamePhone || "").replace(/\D/g, '');
-      let phone = "";
+  // Fallback: If not found in history, use current live values from screen
+  if (!bill) {
+    const curBillNo = document.getElementById('billNo').value;
+    const curCust = document.getElementById('custNamePhone').value;
+    const curNet = document.getElementById('pvNetBalance').textContent;
+    const curDate = document.getElementById('billDate').value;
+    bill = {
+      billNo: curBillNo || billNo,
+      date: curDate,
+      custNamePhone: curCust,
+      netBal: curNet
+    };
+  }
 
-      if (rawDigits.length === 10) {
-        phone = "91" + rawDigits;
-      } else if (rawDigits.length === 12 && rawDigits.startsWith("91")) {
-        phone = rawDigits;
-      } else if (rawDigits.length === 11 && rawDigits.startsWith("0")) {
-        phone = "91" + rawDigits.substring(1);
-      } else {
-        const manual = window.prompt("Customer 10-digit mobile number not found in name. Enter number to send WhatsApp reminder:", "");
-        if (!manual) return;
-        const cleanManual = manual.replace(/\D/g, '');
-        phone = cleanManual.length === 10 ? "91" + cleanManual : cleanManual;
-      }
+  // Extract all digits from customer name/phone field
+  const rawDigits = (bill.custNamePhone || "").replace(/\D/g, '');
+  let phone = "";
 
-      if (!phone || phone.length < 10) {
-        alert("Please enter a valid mobile number.");
-        return;
-      }
+  if (rawDigits.length === 10) {
+    phone = "91" + rawDigits;
+  } else if (rawDigits.length === 12 && rawDigits.startsWith("91")) {
+    phone = rawDigits;
+  } else if (rawDigits.length === 11 && rawDigits.startsWith("0")) {
+    phone = "91" + rawDigits.substring(1);
+  } else if (rawDigits.length > 10) {
+    // If text contains extra numbers, take the last 10 digits
+    phone = "91" + rawDigits.slice(-10);
+  } else {
+    const manual = window.prompt("Enter customer 10-digit mobile number for WhatsApp:", "");
+    if (!manual) return;
+    const cleanManual = manual.replace(/\D/g, '');
+    phone = cleanManual.length === 10 ? "91" + cleanManual : cleanManual;
+  }
 
-      const message = 
+  if (!phone || phone.length < 10) {
+    alert("Please enter a valid mobile number.");
+    return;
+  }
+
+  const message = 
 `*Payment Reminder - EXPERT LIGHT*
 ----------------------------------------
 Dear Customer,
@@ -617,56 +631,58 @@ Kindly settle the pending payment at your earliest convenience via Cash or UPI.
 Thank you!
 *EXPERT LIGHT, RAJKOT*`;
 
-      const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-      window.location.href = waUrl;
-    }
+  // Standard universal WhatsApp URL
+  const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+  
+  // Open directly
+  window.open(waUrl, '_blank') || (window.location.href = waUrl);
+}
 
-    function renderSavedBillsTable() {
-      const tbody = document.getElementById('savedBillsTableBody');
-      if (!tbody) return;
-      const history = getAllSavedBills();
-      const search = (document.getElementById('searchBillInput')?.value || '').toLowerCase();
+function renderSavedBillsTable() {
+  const tbody = document.getElementById('savedBillsTableBody');
+  if (!tbody) return;
+  const history = getAllSavedBills();
+  const search = (document.getElementById('searchBillInput')?.value || '').toLowerCase();
 
-      tbody.innerHTML = '';
-      const filtered = history.filter(b => 
-        (b.billNo || '').toLowerCase().includes(search) || 
-        (b.custNamePhone || '').toLowerCase().includes(search)
-      );
+  tbody.innerHTML = '';
+  const filtered = history.filter(b => 
+    (b.billNo || '').toLowerCase().includes(search) || 
+    (b.custNamePhone || '').toLowerCase().includes(search)
+  );
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400 font-semibold">No bills generated yet.</td></tr>`;
-        return;
-      }
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400 font-semibold">No bills generated yet.</td></tr>`;
+    return;
+  }
 
-      filtered.forEach(b => {
-        const isPaid = b.status === 'Paid';
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-50';
-        tr.innerHTML = `
-          <td class="p-2.5 font-bold">${b.billNo}</td>
-          <td class="p-2.5 text-gray-600">${b.date}</td>
-          <td class="p-2.5 font-medium uppercase">${b.custNamePhone || '-'}</td>
-          <td class="p-2.5 text-right font-semibold">₹${b.thisBill}</td>
-          <td class="p-2.5 text-right font-bold ${isPaid ? 'text-gray-500 line-through' : 'text-red-600'}">₹${b.netBal} DB</td>
-          <td class="p-2.5 text-center">
-            <button onclick="toggleBillPaymentStatus('${b.billNo}')" class="px-2 py-1 rounded text-[10.5px] font-bold ${isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'}">
-              ${isPaid ? '✓ Paid' : 'Pending (Unpaid)'}
-            </button>
-          </td>
-          <td class="p-2.5 text-center">
-            ${isPaid 
-              ? `<span class="text-gray-400 text-[11px] font-medium">Completed</span>`
-              : `<button onclick="sendWhatsAppPaymentReminder('\${b.billNo}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold inline-flex items-center shadow-sm">
-                   <i data-lucide="bell" class="w-3 h-3 mr-1"></i> Remind (WhatsApp)
-                 </button>`
-            }
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-      lucide.createIcons();
-    }
-
+  filtered.forEach(b => {
+    const isPaid = b.status === 'Paid';
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-gray-50';
+    tr.innerHTML = `
+      <td class="p-2.5 font-bold">${b.billNo}</td>
+      <td class="p-2.5 text-gray-600">${b.date}</td>
+      <td class="p-2.5 font-medium uppercase">${b.custNamePhone || '-'}</td>
+      <td class="p-2.5 text-right font-semibold">₹${b.thisBill}</td>
+      <td class="p-2.5 text-right font-bold ${isPaid ? 'text-gray-500 line-through' : 'text-red-600'}">₹${b.netBal} DB</td>
+      <td class="p-2.5 text-center">
+        <button onclick="toggleBillPaymentStatus('${b.billNo}')" class="px-2 py-1 rounded text-[10.5px] font-bold ${isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'}">
+          ${isPaid ? '✓ Paid' : 'Pending (Unpaid)'}
+        </button>
+      </td>
+      <td class="p-2.5 text-center">
+        ${isPaid 
+          ? `<span class="text-gray-400 text-[11px] font-medium">Completed</span>`
+          : `<button onclick="sendWhatsAppPaymentReminder('\${b.billNo}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold inline-flex items-center shadow-sm">
+               <i data-lucide="bell" class="w-3 h-3 mr-1"></i> Remind (WhatsApp)
+             </button>`
+        }
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  lucide.createIcons();
+}
     function newBill() {
       saveCurrentBill();
       const nextSeq = incrementSequenceNumber();

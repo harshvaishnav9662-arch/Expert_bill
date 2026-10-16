@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="gu">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EXPERT LIGHT - Billing App</title>
+  <title>EXPERT LIGHT - Billing & Khata Ledger</title>
 
-  <!-- PWA & Mobile App Icon Settings -->
+  <!-- PWA & Mobile App Settings -->
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./icon.png" />
   <link rel="apple-touch-icon" href="./icon.png" />
@@ -47,7 +47,7 @@
 
   <datalist id="catalogList"></datalist>
 
-  <!-- Navigation Bar -->
+  <!-- Header -->
   <header class="bg-black text-white px-4 py-3 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-50 no-print shadow">
     <div class="flex items-center space-x-2.5">
       <img src="./icon.png" alt="App Icon" class="w-7 h-7 rounded object-contain bg-white p-0.5" onerror="this.style.display='none'" />
@@ -85,7 +85,7 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">No. (Sequence from 1)</label>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">No. (Auto Sequence)</label>
             <input type="text" id="billNo" value="EEL-0001" class="w-full text-xs p-2 border border-gray-300 rounded font-semibold focus:ring-1 focus:ring-black outline-none bg-gray-50" oninput="onBillNoManualChange(this.value)" />
           </div>
           <div>
@@ -99,12 +99,11 @@
             <input type="number" step="any" id="oldBalance" value="0.00" class="w-full text-xs p-2 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
           </div>
           <div>
-            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Note Remark</label>
-            <input type="text" id="memoNote" value="" placeholder="Optional note" class="w-full text-xs p-2 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
+            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Note Remark / Return</label>
+            <input type="text" id="memoNote" value="" placeholder="e.g. Return aapelu -786" class="w-full text-xs p-2 border border-gray-300 rounded font-medium focus:ring-1 focus:ring-black outline-none" oninput="saveAndRender()" />
           </div>
         </div>
 
-        <!-- Payment Status Selection -->
         <div class="pt-2 border-t">
           <label class="block text-[11px] font-semibold text-gray-600 mb-1">Payment Status</label>
           <select id="billPaymentStatus" class="w-full text-xs p-2 border border-gray-300 rounded font-bold outline-none" onchange="saveAndRender()">
@@ -247,15 +246,17 @@
 
   </div>
 
-  <!-- SAVED BILLS & WHATSAPP PAYMENT REMINDER LEDGER -->
-  <section class="max-w-[1500px] mx-auto p-3 md:p-6 no-print">
+  <!-- CUSTOMER KHATA / ALL PENDING BILLS SUMMARY SECTION -->
+  <section class="max-w-[1500px] mx-auto p-3 md:p-6 no-print space-y-6">
+    
+    <!-- All Bills Ledger Table -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
         <div>
           <h2 class="text-sm font-bold uppercase tracking-wider text-gray-800 flex items-center">
-            <i data-lucide="history" class="w-4 h-4 mr-2 text-gray-600"></i> Saved Invoices & Payment Tracking
+            <i data-lucide="history" class="w-4 h-4 mr-2 text-gray-600"></i> Individual Bill Ledger
           </h2>
-          <p class="text-xs text-gray-500">Every generated bill is recorded below. Click remind to message unpaid customers on WhatsApp.</p>
+          <p class="text-xs text-gray-500">દરેક સેવ થયેલું બિલ. પેમેન્ટ થઈ ગયું હોય તો Paid પર ક્લિક કરો.</p>
         </div>
         <div class="flex items-center space-x-2">
           <input type="text" id="searchBillInput" placeholder="Search customer or bill no..." oninput="renderSavedBillsTable()" class="text-xs p-2 border border-gray-300 rounded outline-none w-56" />
@@ -269,20 +270,47 @@
               <th class="p-2.5">Bill No.</th>
               <th class="p-2.5">Date</th>
               <th class="p-2.5">Customer Name & Phone</th>
-              <th class="p-2.5 text-right">This Bill</th>
+              <th class="p-2.5 text-right">Bill Total</th>
               <th class="p-2.5 text-right">Net Due</th>
               <th class="p-2.5 text-center">Status</th>
-              <th class="p-2.5 text-center">Payment Reminder</th>
+              <th class="p-2.5 text-center">Single Bill Remind</th>
             </tr>
           </thead>
           <tbody id="savedBillsTableBody" class="divide-y divide-gray-200"></tbody>
         </table>
       </div>
     </div>
+
+    <!-- CUSTOMER COMBINED TOTAL KHATA (ALL PENDING BILLS SUMMED) -->
+    <div class="bg-white rounded-xl border-2 border-purple-200 shadow-sm p-4 space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-purple-100 pb-3">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-purple-900 flex items-center">
+            <i data-lucide="users" class="w-4 h-4 mr-2 text-purple-600"></i> ગ્રાહક વાઈઝ કુલ બાકી હિસાબ (All Bills Combined)
+          </h2>
+          <p class="text-xs text-gray-500">ગ્રાહકના બધા બાકી બિલોનો સરવાળો કરીને એક સાથે વોટ્સએપ પર ગુજરાતીમાં ખાતાવહી મોકલો.</p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="bg-purple-50 text-purple-900 uppercase font-bold border-b border-purple-200">
+              <th class="p-2.5">Customer Name & Phone</th>
+              <th class="p-2.5 text-center">બાકી બિલોની સંખ્યા</th>
+              <th class="p-2.5">બિલ નંબર્સ</th>
+              <th class="p-2.5 text-right text-red-700 font-extrabold">કુલ બાકી રકમ</th>
+              <th class="p-2.5 text-center">વોટ્સએપ ખાતા સ્ટેટમેન્ટ</th>
+            </tr>
+          </thead>
+          <tbody id="customerSummaryTableBody" class="divide-y divide-gray-200"></tbody>
+        </table>
+      </div>
+    </div>
+
   </section>
 
   <script>
-    // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch((err) => console.log('SW error:', err));
@@ -315,9 +343,6 @@
       { name: "RGB ROPE LED LIGHT", qty: 1.000, rate: 260.00 }
     ];
 
-    // ==========================================
-    // BILL SEQUENCE ENGINE (STARTS AT EEL-0001, UNLIMITED)
-    // ==========================================
     const BILL_PREFIX = "EEL-";
 
     function formatSequenceBillNo(num) {
@@ -515,7 +540,7 @@
     }
 
     // ==========================================
-    // BILL STORAGE & WHATSAPP PAYMENT REMINDER
+    // KHATA & MULTI-BILL PENDING ENGINE
     // ==========================================
     function getAllSavedBills() {
       const stored = localStorage.getItem('expert_light_saved_bills_history');
@@ -538,8 +563,8 @@
         date: date,
         custNamePhone: custName,
         city: document.getElementById('custCity').value,
-        thisBill: thisBill,
-        netBal: netBal,
+        thisBill: parseFloat(thisBill) || 0,
+        netBal: parseFloat(netBal) || 0,
         status: status,
         note: document.getElementById('memoNote').value,
         timestamp: Date.now()
@@ -554,6 +579,7 @@
 
       localStorage.setItem('expert_light_saved_bills_history', JSON.stringify(history));
       renderSavedBillsTable();
+      renderCustomerSummaryTable();
     }
 
     function toggleBillPaymentStatus(billNo) {
@@ -567,122 +593,230 @@
           document.getElementById('billPaymentStatus').value = target.status;
         }
         renderSavedBillsTable();
+        renderCustomerSummaryTable();
       }
     }
 
-    // Direct WhatsApp reminder with bulletproof lookup & fallback
-function sendWhatsAppPaymentReminder(billNo) {
-  const history = getAllSavedBills();
-  // Match trimmed bill number or fallback to current screen details if it matches
-  let bill = history.find(b => String(b.billNo).trim().toLowerCase() === String(billNo).trim().toLowerCase());
+    function cleanPhoneNumber(str) {
+      const raw = (str || "").replace(/\D/g, '');
+      if (raw.length === 10) return "91" + raw;
+      if (raw.length === 12 && raw.startsWith("91")) return raw;
+      if (raw.length === 11 && raw.startsWith("0")) return "91" + raw.substring(1);
+      if (raw.length > 10) return "91" + raw.slice(-10);
+      return "";
+    }
 
-  // Fallback: If not found in history, use current live values from screen
-  if (!bill) {
-    const curBillNo = document.getElementById('billNo').value;
-    const curCust = document.getElementById('custNamePhone').value;
-    const curNet = document.getElementById('pvNetBalance').textContent;
-    const curDate = document.getElementById('billDate').value;
-    bill = {
-      billNo: curBillNo || billNo,
-      date: curDate,
-      custNamePhone: curCust,
-      netBal: curNet
-    };
-  }
+    // 1. Single Bill Reminder (Gujarati)
+    function sendSingleBillReminder(billNo) {
+      const history = getAllSavedBills();
+      let bill = history.find(b => String(b.billNo).trim().toLowerCase() === String(billNo).trim().toLowerCase());
 
-  // Extract all digits from customer name/phone field
-  const rawDigits = (bill.custNamePhone || "").replace(/\D/g, '');
-  let phone = "";
+      if (!bill) {
+        bill = {
+          billNo: document.getElementById('billNo').value || billNo,
+          date: document.getElementById('billDate').value,
+          custNamePhone: document.getElementById('custNamePhone').value,
+          netBal: parseFloat(document.getElementById('pvNetBalance').textContent) || 0
+        };
+      }
 
-  if (rawDigits.length === 10) {
-    phone = "91" + rawDigits;
-  } else if (rawDigits.length === 12 && rawDigits.startsWith("91")) {
-    phone = rawDigits;
-  } else if (rawDigits.length === 11 && rawDigits.startsWith("0")) {
-    phone = "91" + rawDigits.substring(1);
-  } else if (rawDigits.length > 10) {
-    // If text contains extra numbers, take the last 10 digits
-    phone = "91" + rawDigits.slice(-10);
-  } else {
-    const manual = window.prompt("Enter customer 10-digit mobile number for WhatsApp:", "");
-    if (!manual) return;
-    const cleanManual = manual.replace(/\D/g, '');
-    phone = cleanManual.length === 10 ? "91" + cleanManual : cleanManual;
-  }
+      let phone = cleanPhoneNumber(bill.custNamePhone);
+      if (!phone) {
+        const manual = window.prompt("ગ્રાહકનો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો:", "");
+        if (!manual) return;
+        phone = cleanPhoneNumber(manual);
+      }
 
-  if (!phone || phone.length < 10) {
-    alert("Please enter a valid mobile number.");
-    return;
-  }
+      if (!phone || phone.length < 10) {
+        alert("કૃપા કરીને સાચો મોબાઈલ નંબર નાખો.");
+        return;
+      }
 
-  const message = 
-`*Payment Reminder - EXPERT LIGHT*
+      const msg = 
+`*પેમેન્ટ રીમાઇન્ડર - EXPERT LIGHT*
 ----------------------------------------
-Dear Customer,
-This is a gentle reminder regarding your outstanding bill payment.
+નમસ્તે,
+આપના નીચે મુજબના બિલની બાકી રકમ જમા કરાવવા વિનંતી:
 
-*Bill No:* ${bill.billNo}
-*Bill Date:* ${bill.date}
-*Customer:* ${bill.custNamePhone}
-*Total Pending Amount:* ₹${bill.netBal} DB
+• *બિલ નં:* ${bill.billNo}
+• *તારીખ:* ${bill.date}
+• *ગ્રાહકનું નામ:* ${bill.custNamePhone}
+• *બાકી રકમ:* ₹${bill.netBal.toFixed(2)} DB
 ----------------------------------------
-Kindly settle the pending payment at your earliest convenience via Cash or UPI.
+મહેરબાની કરીને આ પેમેન્ટ રોકડ અથવા UPI દ્વારા જમા કરાવી આપશો.
 
-Thank you!
-*EXPERT LIGHT, RAJKOT*`;
+આભાર,
+*EXPERT LIGHT, રાજકોટ*
+📞 સંપર્ક: 96620 09413`;
 
-  // Standard universal WhatsApp URL
-  const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-  
-  // Open directly
-  window.open(waUrl, '_blank') || (window.location.href = waUrl);
-}
+      const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank') || (window.location.href = url);
+    }
 
-function renderSavedBillsTable() {
-  const tbody = document.getElementById('savedBillsTableBody');
-  if (!tbody) return;
-  const history = getAllSavedBills();
-  const search = (document.getElementById('searchBillInput')?.value || '').toLowerCase();
+    // 2. All Bills Combined Khata Statement (Gujarati)
+    function sendAllDueStatement(customerKey) {
+      const history = getAllSavedBills();
+      const unpaidBills = history.filter(b => {
+        const key = (cleanPhoneNumber(b.custNamePhone) || b.custNamePhone.trim().toLowerCase());
+        return key === customerKey && b.status !== 'Paid';
+      });
 
-  tbody.innerHTML = '';
-  const filtered = history.filter(b => 
-    (b.billNo || '').toLowerCase().includes(search) || 
-    (b.custNamePhone || '').toLowerCase().includes(search)
-  );
+      if (unpaidBills.length === 0) {
+        alert("આ ગ્રાહકનું કોઈ બાકી બિલ નથી.");
+        return;
+      }
 
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400 font-semibold">No bills generated yet.</td></tr>`;
-    return;
-  }
+      const sample = unpaidBills[0];
+      let phone = cleanPhoneNumber(sample.custNamePhone);
+      if (!phone) {
+        const manual = window.prompt("ગ્રાહકનો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો:", "");
+        if (!manual) return;
+        phone = cleanPhoneNumber(manual);
+      }
 
-  filtered.forEach(b => {
-    const isPaid = b.status === 'Paid';
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-gray-50';
-    tr.innerHTML = `
-      <td class="p-2.5 font-bold">${b.billNo}</td>
-      <td class="p-2.5 text-gray-600">${b.date}</td>
-      <td class="p-2.5 font-medium uppercase">${b.custNamePhone || '-'}</td>
-      <td class="p-2.5 text-right font-semibold">₹${b.thisBill}</td>
-      <td class="p-2.5 text-right font-bold ${isPaid ? 'text-gray-500 line-through' : 'text-red-600'}">₹${b.netBal} DB</td>
-      <td class="p-2.5 text-center">
-        <button onclick="toggleBillPaymentStatus('${b.billNo}')" class="px-2 py-1 rounded text-[10.5px] font-bold ${isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'}">
-          ${isPaid ? '✓ Paid' : 'Pending (Unpaid)'}
-        </button>
-      </td>
-      <td class="p-2.5 text-center">
-        ${isPaid 
-          ? `<span class="text-gray-400 text-[11px] font-medium">Completed</span>`
-          : `<button onclick="sendWhatsAppPaymentReminder('\${b.billNo}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold inline-flex items-center shadow-sm">
-               <i data-lucide="bell" class="w-3 h-3 mr-1"></i> Remind (WhatsApp)
-             </button>`
+      if (!phone || phone.length < 10) {
+        alert("કૃપા કરીને સાચો મોબાઈલ નંબર નાખો.");
+        return;
+      }
+
+      let totalOutstanding = 0;
+      let billLines = "";
+
+      unpaidBills.slice().reverse().forEach((b) => {
+        totalOutstanding += b.thisBill;
+        billLines += `• બિલ ${b.billNo} (${b.date}): +₹${b.thisBill.toFixed(2)} DB\n`;
+        if (b.note && b.note.trim()) {
+          billLines += `   ↳ નોંધ: ${b.note}\n`;
         }
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-  lucide.createIcons();
-}
+      });
+
+      const latestBill = unpaidBills[0];
+      const finalNetDue = latestBill.netBal > totalOutstanding ? latestBill.netBal : totalOutstanding;
+
+      const statementMsg = 
+`*ખાતા વિગત / સ્ટેટમેન્ટ - EXPERT LIGHT*
+----------------------------------------
+*ગ્રાહકનું નામ:* ${sample.custNamePhone}
+*તારીખ:* ${getTodayFormatted()}
+
+*બાકી બિલોની વિગત:*
+${billLines}----------------------------------------
+*કુલ બાકી રકમ: ₹${finalNetDue.toFixed(2)} DB*
+----------------------------------------
+મહેરબાની કરીને હિસાબ ચકાસી બાકી રકમ રોકડ અથવા UPI મારફતે જમા કરાવી આપવા નમ્ર વિનંતી.
+
+આભાર,
+*EXPERT LIGHT, રાજકોટ*
+📞 સંપર્ક: 96620 09413`;
+
+      const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(statementMsg)}`;
+      window.open(url, '_blank') || (window.location.href = url);
+    }
+
+    function renderSavedBillsTable() {
+      const tbody = document.getElementById('savedBillsTableBody');
+      if (!tbody) return;
+      const history = getAllSavedBills();
+      const search = (document.getElementById('searchBillInput')?.value || '').toLowerCase();
+
+      tbody.innerHTML = '';
+      const filtered = history.filter(b => 
+        (b.billNo || '').toLowerCase().includes(search) || 
+        (b.custNamePhone || '').toLowerCase().includes(search)
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400 font-semibold">કોઈ બિલ મળ્યું નથી.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(b => {
+        const isPaid = b.status === 'Paid';
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        tr.innerHTML = `
+          <td class="p-2.5 font-bold">${b.billNo}</td>
+          <td class="p-2.5 text-gray-600">${b.date}</td>
+          <td class="p-2.5 font-medium uppercase">${b.custNamePhone || '-'}</td>
+          <td class="p-2.5 text-right font-semibold">₹${Number(b.thisBill).toFixed(2)}</td>
+          <td class="p-2.5 text-right font-bold ${isPaid ? 'text-gray-500 line-through' : 'text-red-600'}">₹${Number(b.netBal).toFixed(2)} DB</td>
+          <td class="p-2.5 text-center">
+            <button onclick="toggleBillPaymentStatus('${b.billNo}')" class="px-2 py-1 rounded text-[10.5px] font-bold ${isPaid ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'}">
+              ${isPaid ? '✓ Paid' : 'Pending (Unpaid)'}
+            </button>
+          </td>
+          <td class="p-2.5 text-center">
+            ${isPaid 
+              ? `<span class="text-gray-400 text-[11px] font-medium">Settled</span>`
+              : `<button onclick="sendSingleBillReminder('\${b.billNo}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold inline-flex items-center shadow-sm">
+                   <i data-lucide="bell" class="w-3 h-3 mr-1"></i> Remind
+                 </button>`
+            }
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    function renderCustomerSummaryTable() {
+      const tbody = document.getElementById('customerSummaryTableBody');
+      if (!tbody) return;
+      const history = getAllSavedBills();
+
+      const customerMap = {};
+
+      history.forEach(b => {
+        if (b.status === 'Paid') return;
+        const key = cleanPhoneNumber(b.custNamePhone) || (b.custNamePhone || "").trim().toLowerCase();
+        if (!key) return;
+
+        if (!customerMap[key]) {
+          customerMap[key] = {
+            key: key,
+            displayName: b.custNamePhone,
+            bills: [],
+            totalDue: 0
+          };
+        }
+        customerMap[key].bills.push(b);
+      });
+
+      const customers = Object.values(customerMap);
+      tbody.innerHTML = '';
+
+      if (customers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-emerald-700 font-bold">🎉 બધા ગ્રાહકોનું પેમેન્ટ પૂરું થઈ ગયેલ છે!</td></tr>`;
+        return;
+      }
+
+      customers.forEach(c => {
+        let sumTotal = 0;
+        const billNos = c.bills.map(b => {
+          sumTotal += b.thisBill;
+          return b.billNo;
+        }).join(', ');
+
+        const latestNet = c.bills[0].netBal > sumTotal ? c.bills[0].netBal : sumTotal;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-purple-50/50';
+        tr.innerHTML = `
+          <td class="p-2.5 font-bold uppercase text-gray-800">${c.displayName}</td>
+          <td class="p-2.5 text-center font-bold text-purple-800"><span class="bg-purple-100 px-2 py-0.5 rounded-full">${c.bills.length} Bills</span></td>
+          <td class="p-2.5 font-mono text-gray-600">${billNos}</td>
+          <td class="p-2.5 text-right font-extrabold text-red-600 text-sm">₹${latestNet.toFixed(2)} DB</td>
+          <td class="p-2.5 text-center">
+            <button onclick="sendAllDueStatement('${c.key}')" class="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded text-[11px] font-bold inline-flex items-center shadow transition">
+              <i data-lucide="send" class="w-3.5 h-3.5 mr-1.5"></i> ખાતાવહી મોકલો (WhatsApp)
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
     function newBill() {
       saveCurrentBill();
       const nextSeq = incrementSequenceNumber();
@@ -698,6 +832,7 @@ function renderSavedBillsTable() {
     }
 
     function downloadPDF() {
+      saveCurrentBill();
       const element = document.getElementById('printArea');
       const billNo = document.getElementById('billNo').value || 'EEL-0001';
       const opt = {
@@ -707,7 +842,12 @@ function renderSavedBillsTable() {
         html2canvas: { scale: 3, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
-      html2pdf().set(opt).from(element).save();
+
+      html2pdf().set(opt).from(element).save().then(() => {
+        const nextSeq = incrementSequenceNumber();
+        document.getElementById('billNo').value = formatSequenceBillNo(nextSeq);
+        saveAndRender();
+      });
     }
 
     window.onload = () => {
@@ -738,6 +878,7 @@ function renderSavedBillsTable() {
       renderEditor();
       saveAndRender();
       renderSavedBillsTable();
+      renderCustomerSummaryTable();
       lucide.createIcons();
     };
   </script>

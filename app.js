@@ -1,10 +1,11 @@
-// Service Worker Registration for PWA
+// PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch((err) => console.log('SW error:', err));
+    navigator.serviceWorker.register('./sw.js').catch((err) => console.log('SW registration error:', err));
   });
 }
 
+// Product Catalog
 const PRODUCT_CATALOG = [
   { name: "RGB ROPE LIGHT COMPLETE SET (STRIP, SENSOR)", rate: 350.00 },
   { name: "RGB ROPE LED LIGHT", rate: 260.00 },
@@ -93,7 +94,7 @@ function getTodayFormatted() {
   return `${d}/${m}/${date.getFullYear()}`;
 }
 
-// Converts numbers into readable Indian currency text
+// Converts numbers into Indian currency text format
 function numberToWords(amount) {
   const single = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -214,7 +215,7 @@ function saveAndRender() {
 
   localStorage.setItem('expert_light_last_bill', JSON.stringify(formPayload));
 
-  // Sync printable invoice preview
+  // Sync with printable preview
   document.getElementById('pvCustNamePhone').textContent = formPayload.name || '-';
   document.getElementById('pvCustCity').textContent = formPayload.city || '-';
   document.getElementById('pvBillNo').textContent = formPayload.billNo || formatSequenceBillNo(1);
@@ -308,6 +309,23 @@ function toggleBillPaymentStatus(billNo) {
     renderSavedBillsTable();
     calculateSelectedTotal();
   }
+}
+
+// Delete a Saved Bill from Storage
+function deleteSavedBill(billNo) {
+  const confirmDelete = window.confirm(`શું તમે ખરેખર બિલ ${billNo} ડિલીટ કરવા માંગો છો? (Are you sure you want to delete bill ${billNo}?)`);
+  if (!confirmDelete) return;
+
+  let history = getAllSavedBills();
+  history = history.filter(b => b.billNo !== billNo);
+
+  if (selectedBillNumbers.has(billNo)) {
+    selectedBillNumbers.delete(billNo);
+  }
+
+  localStorage.setItem('expert_light_saved_bills_history', JSON.stringify(history));
+  renderSavedBillsTable();
+  calculateSelectedTotal();
 }
 
 // Checkbox and Multi-Bill Calculations
@@ -473,6 +491,131 @@ ${lines}${adjustText}----------------------------------------
   window.open(waLink, '_blank') || (window.location.href = waLink);
 }
 
+// Option 3: Pending Payments Notification Modal Logic
+function checkAndShowPendingReminderPopup() {
+  const history = getAllSavedBills();
+  const customerMap = {};
+  let overallPendingSum = 0;
+
+  history.forEach(b => {
+    if (b.status === 'Paid') return;
+    const key = cleanPhoneNumber(b.custNamePhone) || (b.custNamePhone || "").trim().toLowerCase();
+    if (!key) return;
+
+    if (!customerMap[key]) {
+      customerMap[key] = {
+        key: key,
+        name: b.custNamePhone,
+        totalDue: 0,
+        billsCount: 0
+      };
+    }
+    const amt = parseFloat(b.thisBill) || 0;
+    customerMap[key].totalDue += amt;
+    customerMap[key].billsCount += 1;
+    overallPendingSum += amt;
+  });
+
+  const pendingList = Object.values(customerMap);
+
+  if (pendingList.length === 0 || overallPendingSum <= 0) return;
+
+  const totalEl = document.getElementById('modalGrandPendingTotal');
+  const countBadge = document.getElementById('modalPendingCountBadge');
+  const listContainer = document.getElementById('modalPendingCustomerList');
+
+  if (totalEl) totalEl.textContent = `₹${overallPendingSum.toFixed(2)} DB`;
+  if (countBadge) countBadge.textContent = `${pendingList.length} ગ્રાહક બાકી`;
+
+  if (listContainer) {
+    listContainer.innerHTML = '';
+    pendingList.forEach(c => {
+      const item = document.createElement('div');
+      item.className = 'p-3 flex items-center justify-between hover:bg-white bg-white/70 transition border-b border-gray-100 last:border-b-0';
+      item.innerHTML = `
+        <div>
+          <div class="text-xs font-bold uppercase text-gray-800">${c.name}</div>
+          <div class="text-[11px] text-gray-500 font-medium">${c.billsCount} બિલ બાકી</div>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-black text-red-600">₹${c.totalDue.toFixed(2)} DB</span>
+          <button onclick="sendPendingCollectionReminder('${c.key}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold inline-flex items-center shadow-sm transition">
+            <i data-lucide="send" class="w-3 h-3 mr-1"></i> Remind
+          </button>
+        </div>
+      `;
+      listContainer.appendChild(item);
+    });
+  }
+
+  const modal = document.getElementById('pendingPaymentModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function closePendingReminderModal() {
+  const modal = document.getElementById('pendingPaymentModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+// Send Pending Collection Message from Popup
+function sendPendingCollectionReminder(customerKey) {
+  const history = getAllSavedBills();
+  const unpaid = history.filter(b => {
+    const key = cleanPhoneNumber(b.custNamePhone) || (b.custNamePhone || "").trim().toLowerCase();
+    return key === customerKey && b.status !== 'Paid';
+  });
+
+  if (unpaid.length === 0) {
+    alert("કોઈ બાકી બિલ મળ્યું નથી.");
+    return;
+  }
+
+  const sample = unpaid[0];
+  let phone = cleanPhoneNumber(sample.custNamePhone);
+
+  if (!phone) {
+    const manual = window.prompt("ગ્રાહકનો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો:", "");
+    if (!manual) return;
+    phone = cleanPhoneNumber(manual);
+  }
+
+  let totalDue = 0;
+  let breakdown = "";
+
+  unpaid.slice().reverse().forEach(b => {
+    const amt = parseFloat(b.thisBill) || 0;
+    totalDue += amt;
+    breakdown += `• બિલ નં. ${b.billNo} (${b.date}): +₹${amt.toFixed(2)} DB\n`;
+    if (b.note && b.note.trim()) {
+      breakdown += `   ↳ નોંધ: ${b.note}\n`;
+    }
+  });
+
+  const message = 
+`*પેમેન્ટ રીમાઇન્ડર (બાકી ઉઘરાણી) - EXPERT LIGHT*
+----------------------------------------
+નમસ્તે શ્રી ${sample.custNamePhone},
+
+આપના તરફ નીચે મુજબના બિલોની રકમ બાકી નીકળે છે:
+
+${breakdown}----------------------------------------
+*કુલ બાકી રકમ ચૂકવવાની: ₹${totalDue.toFixed(2)} DB*
+----------------------------------------
+મહેરબાની કરીને આ બાકી પેમેન્ટ Google Pay / PhonePe / UPI અથવા રોકડ દ્વારા જમા કરાવી આપશો.
+
+આભાર,
+*EXPERT LIGHT, રાજકોટ*
+📞 સંપર્ક / UPI: 96620 09413`;
+
+  const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+  window.open(waUrl, '_blank') || (window.location.href = waUrl);
+}
+
 // Action Handlers
 function newBill() {
   saveCurrentBill();
@@ -507,197 +650,7 @@ function downloadPDF() {
     saveAndRender();
   });
 }
-// Delete a specific bill from history
-function deleteSavedBill(billNo) {
-  const confirmDelete = window.confirm(`શું તમે ખરેખર બિલ ${billNo} ડિલીટ કરવા માંગો છો? (Are you sure you want to delete bill ${billNo}?)`);
-  if (!confirmDelete) return;
 
-  let history = getAllSavedBills();
-  // Filter out the selected bill
-  history = history.filter(b => b.billNo !== billNo);
-
-  // Remove from selected set if it was checked
-  if (selectedBillNumbers.has(billNo)) {
-    selectedBillNumbers.delete(billNo);
-  }
-
-  // Save updated array to localStorage
-  localStorage.setItem('expert_light_saved_bills_history', JSON.stringify(history));
-
-  // Re-render table and update total
-  renderSavedBillsTable();
-  calculateSelectedTotal();
-}
-// Render dedicated "Pending Payments to Collect" view
-function renderMyPendingPayments() {
-  const tbody = document.getElementById('myPendingTableBody');
-  const grandPendingEl = document.getElementById('grandPendingTotal');
-  if (!tbody) return;
-
-  const history = getAllSavedBills();
-  const customerMap = {};
-  let overallPendingSum = 0;
-
-  // Group only UNPAID bills by customer
-  history.forEach(bill => {
-    if (bill.status === 'Paid') return;
-
-    const phoneKey = cleanPhoneNumber(bill.custNamePhone) || (bill.custNamePhone || "").trim().toLowerCase();
-    if (!phoneKey) return;
-
-    if (!customerMap[phoneKey]) {
-      customerMap[phoneKey] = {
-        key: phoneKey,
-        name: bill.custNamePhone,
-        bills: [],
-        totalDue: 0
-      };
-    }
-
-    const billAmt = parseFloat(bill.thisBill) || 0;
-    customerMap[phoneKey].bills.push(bill);
-    customerMap[phoneKey].totalDue += billAmt;
-    overallPendingSum += billAmt;
-  });
-
-  const pendingCustomers = Object.values(customerMap);
-  tbody.innerHTML = '';
-
-  if (grandPendingEl) {
-    grandPendingEl.textContent = `₹${overallPendingSum.toFixed(2)} DB`;
-  }
-
-  if (pendingCustomers.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-emerald-700 font-bold">🎉 તમામ પેમેન્ટ મળી ગયેલ છે! કોઈ બાકી રકમ નથી.</td></tr>`;
-    return;
-  }
-
-  pendingCustomers.forEach(c => {
-    const tr = document.createElement('tr');
-    tr.className = 'hover:bg-red-50/50';
-    tr.innerHTML = `
-      <td class="p-3 font-bold uppercase text-gray-800">${c.name}</td>
-      <td class="p-3 text-center font-bold">
-        <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full">${c.bills.length} બિલ બાકી</span>
-      </td>
-      <td class="p-3 text-right font-black text-red-600 text-sm">₹${c.totalDue.toFixed(2)} DB</td>
-      <td class="p-3 text-center">
-        <button onclick="sendPendingCollectionReminder('${c.key}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold inline-flex items-center shadow transition">
-          <i data-lucide="bell-ring" class="w-3.5 h-3.5 mr-1.5"></i> પેમેન્ટ રીમાઇન્ડર મોકલો
-        </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  if (window.lucide) lucide.createIcons();
-}
-
-// Send detailed pending payment message to customer on WhatsApp
-function sendPendingCollectionReminder(customerKey) {
-  const history = getAllSavedBills();
-  const unpaid = history.filter(b => {
-    const key = cleanPhoneNumber(b.custNamePhone) || (b.custNamePhone || "").trim().toLowerCase();
-    return key === customerKey && b.status !== 'Paid';
-  });
-
-  if (unpaid.length === 0) {
-    alert("કોઈ બાકી બિલ મળ્યું નથી.");
-    return;
-  }
-
-  const sample = unpaid[0];
-  let phone = cleanPhoneNumber(sample.custNamePhone);
-
-  if (!phone) {
-    const manual = window.prompt("ગ્રાહકનો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો:", "");
-    if (!manual) return;
-    phone = cleanPhoneNumber(manual);
-  }
-
-  let totalDue = 0;
-  let breakdown = "";
-
-  unpaid.slice().reverse().forEach(b => {
-    const amt = parseFloat(b.thisBill) || 0;
-    totalDue += amt;
-    breakdown += `• બિલ નં. ${b.billNo} (${b.date}): ₹${amt.toFixed(2)} DB\n`;
-    if (b.note && b.note.trim()) {
-      breakdown += `   ↳ નોંધ: ${b.note}\n`;
-    }
-  });
-
-  // Open and Populate the Pending Payments Popup
-function checkAndShowPendingReminderPopup() {
-  const history = getAllSavedBills();
-  const customerMap = {};
-  let overallPendingSum = 0;
-
-  // Aggregate pending amounts by customer
-  history.forEach(b => {
-    if (b.status === 'Paid') return;
-    const key = cleanPhoneNumber(b.custNamePhone) || (b.custNamePhone || "").trim().toLowerCase();
-    if (!key) return;
-
-    if (!customerMap[key]) {
-      customerMap[key] = {
-        key: key,
-        name: b.custNamePhone,
-        totalDue: 0,
-        billsCount: 0
-      };
-    }
-    const amt = parseFloat(b.thisBill) || 0;
-    customerMap[key].totalDue += amt;
-    customerMap[key].billsCount += 1;
-    overallPendingSum += amt;
-  });
-
-  const pendingList = Object.values(customerMap);
-
-  // If there are no pending payments, do not show popup
-  if (pendingList.length === 0 || overallPendingSum <= 0) return;
-
-  // Set Modal Stats
-  document.getElementById('modalGrandPendingTotal').textContent = `₹${overallPendingSum.toFixed(2)} DB`;
-  document.getElementById('modalPendingCountBadge').textContent = `${pendingList.length} ગ્રાહકો બાકી`;
-
-  const listContainer = document.getElementById('modalPendingCustomerList');
-  listContainer.innerHTML = '';
-
-  pendingList.forEach(c => {
-    const item = document.createElement('div');
-    item.className = 'p-2.5 flex items-center justify-between hover:bg-gray-50';
-    item.innerHTML = `
-      <div>
-        <div class="text-xs font-bold uppercase text-gray-800">${c.name}</div>
-        <div class="text-[11px] text-gray-500">${c.billsCount} બિલ બાકી</div>
-      </div>
-      <div class="flex items-center space-x-2">
-        <span class="text-xs font-extrabold text-red-600">₹${c.totalDue.toFixed(2)} DB</span>
-        <button onclick="sendPendingCollectionReminder('${c.key}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold inline-flex items-center shadow-sm transition">
-          <i data-lucide="send" class="w-3 h-3 mr-1"></i> Remind
-        </button>
-      </div>
-    `;
-    listContainer.appendChild(item);
-  });
-
-  // Reveal Modal
-  const modal = document.getElementById('pendingPaymentModal');
-  if (modal) {
-    modal.classList.remove('hidden');
-    if (window.lucide) lucide.createIcons();
-  }
-}
-
-// Close Modal
-function closePendingReminderModal() {
-  const modal = document.getElementById('pendingPaymentModal');
-  if (modal) {
-    modal.classList.add('hidden');
-  }
-}
 // App Initialization
 window.onload = () => {
   setupCatalogList();
@@ -731,6 +684,6 @@ window.onload = () => {
   renderSavedBillsTable();
   calculateSelectedTotal();
 
-  // Trigger Pending Alert Popup on opening
-  setTimeout(checkAndShowPendingReminderPopup, 700);
+  // Trigger Option 3: Pending Payments Alert Popup after loading
+  setTimeout(checkAndShowPendingReminderPopup, 600);
 };

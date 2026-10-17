@@ -528,6 +528,124 @@ function deleteSavedBill(billNo) {
   renderSavedBillsTable();
   calculateSelectedTotal();
 }
+// Render dedicated "Pending Payments to Collect" view
+function renderMyPendingPayments() {
+  const tbody = document.getElementById('myPendingTableBody');
+  const grandPendingEl = document.getElementById('grandPendingTotal');
+  if (!tbody) return;
+
+  const history = getAllSavedBills();
+  const customerMap = {};
+  let overallPendingSum = 0;
+
+  // Group only UNPAID bills by customer
+  history.forEach(bill => {
+    if (bill.status === 'Paid') return;
+
+    const phoneKey = cleanPhoneNumber(bill.custNamePhone) || (bill.custNamePhone || "").trim().toLowerCase();
+    if (!phoneKey) return;
+
+    if (!customerMap[phoneKey]) {
+      customerMap[phoneKey] = {
+        key: phoneKey,
+        name: bill.custNamePhone,
+        bills: [],
+        totalDue: 0
+      };
+    }
+
+    const billAmt = parseFloat(bill.thisBill) || 0;
+    customerMap[phoneKey].bills.push(bill);
+    customerMap[phoneKey].totalDue += billAmt;
+    overallPendingSum += billAmt;
+  });
+
+  const pendingCustomers = Object.values(customerMap);
+  tbody.innerHTML = '';
+
+  if (grandPendingEl) {
+    grandPendingEl.textContent = `₹${overallPendingSum.toFixed(2)} DB`;
+  }
+
+  if (pendingCustomers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-emerald-700 font-bold">🎉 તમામ પેમેન્ટ મળી ગયેલ છે! કોઈ બાકી રકમ નથી.</td></tr>`;
+    return;
+  }
+
+  pendingCustomers.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-red-50/50';
+    tr.innerHTML = `
+      <td class="p-3 font-bold uppercase text-gray-800">${c.name}</td>
+      <td class="p-3 text-center font-bold">
+        <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full">${c.bills.length} બિલ બાકી</span>
+      </td>
+      <td class="p-3 text-right font-black text-red-600 text-sm">₹${c.totalDue.toFixed(2)} DB</td>
+      <td class="p-3 text-center">
+        <button onclick="sendPendingCollectionReminder('${c.key}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold inline-flex items-center shadow transition">
+          <i data-lucide="bell-ring" class="w-3.5 h-3.5 mr-1.5"></i> પેમેન્ટ રીમાઇન્ડર મોકલો
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// Send detailed pending payment message to customer on WhatsApp
+function sendPendingCollectionReminder(customerKey) {
+  const history = getAllSavedBills();
+  const unpaid = history.filter(b => {
+    const key = cleanPhoneNumber(b.custNamePhone) || (b.custNamePhone || "").trim().toLowerCase();
+    return key === customerKey && b.status !== 'Paid';
+  });
+
+  if (unpaid.length === 0) {
+    alert("કોઈ બાકી બિલ મળ્યું નથી.");
+    return;
+  }
+
+  const sample = unpaid[0];
+  let phone = cleanPhoneNumber(sample.custNamePhone);
+
+  if (!phone) {
+    const manual = window.prompt("ગ્રાહકનો 10 આંકડાનો મોબાઈલ નંબર દાખલ કરો:", "");
+    if (!manual) return;
+    phone = cleanPhoneNumber(manual);
+  }
+
+  let totalDue = 0;
+  let breakdown = "";
+
+  unpaid.slice().reverse().forEach(b => {
+    const amt = parseFloat(b.thisBill) || 0;
+    totalDue += amt;
+    breakdown += `• બિલ નં. ${b.billNo} (${b.date}): ₹${amt.toFixed(2)} DB\n`;
+    if (b.note && b.note.trim()) {
+      breakdown += `   ↳ નોંધ: ${b.note}\n`;
+    }
+  });
+
+  const message = 
+`*પેમેન્ટ રીમાઇન્ડર (બાકી ઉઘરાણી) - EXPERT LIGHT*
+----------------------------------------
+નમસ્તે શ્રી ${sample.custNamePhone},
+
+આપના તરફ નીચે મુજબના બિલોની રકમ બાકી નીકળે છે:
+
+${breakdown}----------------------------------------
+*કુલ બાકી રકમ ચૂકવવાની: ₹${totalDue.toFixed(2)} DB*
+----------------------------------------
+મહેરબાની કરીને આ બાકી પેમેન્ટ Google Pay / PhonePe / UPI અથવા રોકડ દ્વારા જલ્દીથી જમા કરાવી આપશો.
+
+આભાર,
+*EXPERT LIGHT, રાજકોટ*
+📞 સંપર્ક / UPI: 96620 09413`;
+
+  const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+  window.open(waUrl, '_blank') || (window.location.href = waUrl);
+}
 // App Initialization
 window.onload = () => {
   setupCatalogList();
@@ -553,7 +671,6 @@ window.onload = () => {
       console.error(e);
     }
   }
-
   document.getElementById('billNo').value = activeBillNo;
 
   renderEditor();

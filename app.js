@@ -677,4 +677,6 @@ window.onload = () => {
   saveAndRender();
   renderSavedBillsTable();
   calculateSelectedTotal();
+  renderMyPendingPayments();
+  renderMyPendingPayments();
 };

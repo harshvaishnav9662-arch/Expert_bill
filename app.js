@@ -627,24 +627,76 @@ function sendPendingCollectionReminder(customerKey) {
     }
   });
 
-  const message = 
-`*પેમેન્ટ રીમાઇન્ડર (બાકી ઉઘરાણી) - EXPERT LIGHT*
-----------------------------------------
-નમસ્તે શ્રી ${sample.custNamePhone},
+  // Open and Populate the Pending Payments Popup
+function checkAndShowPendingReminderPopup() {
+  const history = getAllSavedBills();
+  const customerMap = {};
+  let overallPendingSum = 0;
 
-આપના તરફ નીચે મુજબના બિલોની રકમ બાકી નીકળે છે:
+  // Aggregate pending amounts by customer
+  history.forEach(b => {
+    if (b.status === 'Paid') return;
+    const key = cleanPhoneNumber(b.custNamePhone) || (b.custNamePhone || "").trim().toLowerCase();
+    if (!key) return;
 
-${breakdown}----------------------------------------
-*કુલ બાકી રકમ ચૂકવવાની: ₹${totalDue.toFixed(2)} DB*
-----------------------------------------
-મહેરબાની કરીને આ બાકી પેમેન્ટ Google Pay / PhonePe / UPI અથવા રોકડ દ્વારા જલ્દીથી જમા કરાવી આપશો.
+    if (!customerMap[key]) {
+      customerMap[key] = {
+        key: key,
+        name: b.custNamePhone,
+        totalDue: 0,
+        billsCount: 0
+      };
+    }
+    const amt = parseFloat(b.thisBill) || 0;
+    customerMap[key].totalDue += amt;
+    customerMap[key].billsCount += 1;
+    overallPendingSum += amt;
+  });
 
-આભાર,
-*EXPERT LIGHT, રાજકોટ*
-📞 સંપર્ક / UPI: 96620 09413`;
+  const pendingList = Object.values(customerMap);
 
-  const waUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-  window.open(waUrl, '_blank') || (window.location.href = waUrl);
+  // If there are no pending payments, do not show popup
+  if (pendingList.length === 0 || overallPendingSum <= 0) return;
+
+  // Set Modal Stats
+  document.getElementById('modalGrandPendingTotal').textContent = `₹${overallPendingSum.toFixed(2)} DB`;
+  document.getElementById('modalPendingCountBadge').textContent = `${pendingList.length} ગ્રાહકો બાકી`;
+
+  const listContainer = document.getElementById('modalPendingCustomerList');
+  listContainer.innerHTML = '';
+
+  pendingList.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'p-2.5 flex items-center justify-between hover:bg-gray-50';
+    item.innerHTML = `
+      <div>
+        <div class="text-xs font-bold uppercase text-gray-800">${c.name}</div>
+        <div class="text-[11px] text-gray-500">${c.billsCount} બિલ બાકી</div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="text-xs font-extrabold text-red-600">₹${c.totalDue.toFixed(2)} DB</span>
+        <button onclick="sendPendingCollectionReminder('${c.key}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold inline-flex items-center shadow-sm transition">
+          <i data-lucide="send" class="w-3 h-3 mr-1"></i> Remind
+        </button>
+      </div>
+    `;
+    listContainer.appendChild(item);
+  });
+
+  // Reveal Modal
+  const modal = document.getElementById('pendingPaymentModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+// Close Modal
+function closePendingReminderModal() {
+  const modal = document.getElementById('pendingPaymentModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
 }
 // App Initialization
 window.onload = () => {
@@ -671,12 +723,14 @@ window.onload = () => {
       console.error(e);
     }
   }
+
   document.getElementById('billNo').value = activeBillNo;
 
   renderEditor();
   saveAndRender();
   renderSavedBillsTable();
   calculateSelectedTotal();
-  renderMyPendingPayments();
-  renderMyPendingPayments();
+
+  // Trigger Pending Alert Popup on opening
+  setTimeout(checkAndShowPendingReminderPopup, 700);
 };
